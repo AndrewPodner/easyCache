@@ -22,30 +22,39 @@ namespace UnassumingPHP;
 
 class EasyCache
 {
-    /* @name: cacheDir <string>
+    /* @name: CACHE_DIR <string>
      * @descr: directory for the cache files.  set this to the directory
      *         as it relates to the $_SERVER['DOCUMENT_ROOT'] value
      *
      */
-    private $cacheDir = 'cache';
+    const CACHE_DIR = 'cache';
 
-    /* @name: cacheLifeSeconds <integer>
+    /* @name: CACHE_LIFE_SECONDS <integer>
      * @descr: Lifetime in seconds for the cache file 3600 seconds (1 hour)
      *         is preset as the default
      *
      */
-    private $cacheLifeSeconds = 3600;
+    const CACHE_LIFE_SECONDS = 3600;
 
-    /* @name: cacheMaxAge <integer>
-     * @descr: the maximum value, expressed as a UNIX Timestamp that a file
-     *         could be created at and still be a valid cache file
+    // @name: initiateCacheCheck
+    // @descr:
+    /*      checks for a valid cache file and loads it if there is one.  If there
+     *      is not a valid cache file available, an expired cache will be deleted
+     *      and the output buffer will be started.
      */
-    private $cacheMaxAge;
-
-
-    public function __construct()
+    public static function initiateCacheCheck()
     {
-        $this->cacheMaxAge = time() - $this->cacheLifeSeconds;
+        $scriptName = $_SERVER['REQUEST_URI'];
+        $fileHash = self::hashScriptName($scriptName);
+        $fileName = self::createFileName($fileHash);
+        $exists = self::checkForExistingCache($fileName);
+        if ($exists == true) {
+            readfile($fileName);
+            exit();
+        } else {
+            ob_start();
+        }
+
     }
 
     /* @name: checkForExistingCache
@@ -58,13 +67,14 @@ class EasyCache
      *          then returns false.  If no file exists, the function returns
      *          false.
      */
-    private function checkForExistingCache($fileName)
+    private static function checkForExistingCache($fileHash)
     {
-        if (file_exists($fileName) == true) {
-            if (filemtime($fileName) >= $this->cacheMaxAge) {
+        $cacheMaxAge = time() + (self::CACHE_LIFE_SECONDS);
+        if (file_exists($fileHash) == true) {
+            if (filemtime($fileHash) <= $cacheMaxAge) {
                 return true;
             } else {
-                unlink($fileName);
+                unlink($target);
                 return false;
             }
         } else {
@@ -78,10 +88,9 @@ class EasyCache
      * @descr: creates a file location string from the hashed script name
      *
      */
-    private function createFileName($fileHash)
+    private static function createFileName($fileHash)
     {
-        return $_SERVER['DOCUMENT_ROOT']."/".$this->cacheDir."/$fileHash.php";
-
+        return self::CACHE_DIR . DIRECTORY_SEPARATOR . "$fileHash.html";
     }
 
     /* @name: hashScriptName
@@ -91,8 +100,23 @@ class EasyCache
      * @descr: Uses md5 as the default method, but you can use any hash method by
      *          just modifying this function to your liking
      */
-    private function hashScriptName($scriptName)
+    private static function hashScriptName($scriptName)
     {
         return md5($scriptName);
+    }
+
+    /* @name: writeCacheFile
+     * @returns: nothing
+     * @descr: creates a cached copy of the file
+     */
+    public static function writeCacheFile()
+    {
+        $scriptName = $_SERVER['REQUEST_URI'];
+        $fileHash = self::hashScriptName($scriptName);
+        $target = self::createFileName($fileHash);
+        $fhandle = fopen($target, 'w+');
+        $write = fwrite($fhandle, ob_get_contents());
+        fclose($fhandle);
+        ob_get_flush();
     }
 }
