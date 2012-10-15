@@ -1,5 +1,5 @@
 <?php
-/*
+/**
  *  This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
@@ -22,23 +22,26 @@ namespace UnassumingPHP;
 
 class EasyCache
 {
-    /* @name: CACHE_DIR <string>
+    /**
+     * @name: CACHE_DIR <string>
      * @descr: directory for the cache files.  set this to the directory
      *         as it relates to the $_SERVER['DOCUMENT_ROOT'] value
      *
      */
     const CACHE_DIR = 'cache';
 
-    /* @name: CACHE_LIFE_SECONDS <integer>
+    /**
+     * @name: CACHE_LIFE_SECONDS <integer>
      * @descr: Lifetime in seconds for the cache file 3600 seconds (1 hour)
      *         is preset as the default
      *
      */
     const CACHE_LIFE_SECONDS = 3600;
 
-    // @name: initiateCacheCheck
-    // @descr:
-    /*      checks for a valid cache file and loads it if there is one.  If there
+    /**
+     * @name: initiateCacheCheck
+     *  @descr:
+     *      checks for a valid cache file and loads it if there is one.  If there
      *      is not a valid cache file available, an expired cache will be deleted
      *      and the output buffer will be started.
      */
@@ -57,7 +60,8 @@ class EasyCache
 
     }
 
-    /* @name: checkForExistingCache
+    /**
+     * @name: checkForExistingCache
      * @params: fileName <string> / expects the cache file name (hashed with
      *                                full path from document root)
      * @returns: boolean
@@ -69,9 +73,9 @@ class EasyCache
      */
     private static function checkForExistingCache($fileHash)
     {
-        $cacheMaxAge = time() + (self::CACHE_LIFE_SECONDS);
         if (file_exists($fileHash) == true) {
-            if (filemtime($fileHash) <= $cacheMaxAge) {
+            $cacheMaxAge = filemtime($fileHash) + (self::CACHE_LIFE_SECONDS);
+            if (time() >= $cacheMaxAge) {
                 return true;
             } else {
                 unlink($target);
@@ -82,7 +86,8 @@ class EasyCache
         }
     }
 
-    /* @name: createFileName
+    /**
+     * @name: createFileName
      * @params: fileName <string> / expects an md5 hash of the filename
      * @returns: <string> : full path file name
      * @descr: creates a file location string from the hashed script name
@@ -93,7 +98,8 @@ class EasyCache
         return self::CACHE_DIR . DIRECTORY_SEPARATOR . "$fileHash.html";
     }
 
-    /* @name: hashScriptName
+    /**
+     * @name: hashScriptName
      * @params: scriptName <string> / expects the script name with any applicable
      *                                query string
      * @returns: md5 hash
@@ -105,18 +111,26 @@ class EasyCache
         return md5($scriptName);
     }
 
-    /* @name: writeCacheFile
+    /**
+     * Write the cache file, also you can put exceptions for file types that
+     * should not be cached.
+     * @name: writeCacheFile
      * @returns: nothing
      * @descr: creates a cached copy of the file
      */
     public static function writeCacheFile()
     {
         $scriptName = $_SERVER['REQUEST_URI'];
-        $fileHash = self::hashScriptName($scriptName);
-        $target = self::createFileName($fileHash);
-        $fhandle = fopen($target, 'w+');
-        $write = fwrite($fhandle, ob_get_contents());
-        fclose($fhandle);
-        ob_get_flush();
+        $ext = end(explode('.', $scriptName));
+        $exceptions = array('js', 'css', 'ico');
+
+        if(!in_array($ext, $exceptions)) {
+            $fileHash = self::hashScriptName($scriptName);
+            $target = self::createFileName($fileHash);
+            $fhandle = fopen($target, 'w+');
+            $write = fwrite($fhandle, ob_get_contents());
+            fclose($fhandle);
+            ob_get_flush();
+        }
     }
 }
