@@ -75,10 +75,10 @@ class EasyCache
     {
         if (file_exists($fileHash) == true) {
             $cacheMaxAge = filemtime($fileHash) + (self::CACHE_LIFE_SECONDS);
-            if (time() >= $cacheMaxAge) {
+            if ($cacheMaxAge >= time()) {
                 return true;
             } else {
-                unlink($target);
+                unlink($fileHash);
                 return false;
             }
         } else {
